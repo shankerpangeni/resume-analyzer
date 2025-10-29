@@ -29,7 +29,7 @@ app.use(cors(corsOptions));
 
 app.use('/api/v1/user' , userRoutes);
 app.use('/api/v1/job', jobRoutes);
-app.use('/api/v1/resume/' , resumeRoutes )
+app.use('/api/v1/resume' , resumeRoutes )
 
 app.listen(process.env.PORT || 3000 , (req , res) => {
     console.log('Backend running successfully');
