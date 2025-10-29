@@ -4,13 +4,15 @@ import dotenv from 'dotenv';
 import { connectDb } from './src/utils/connectDb.js';
 import userRoutes from './src/routes/user.route.js';
 import jobRoutes from './src/routes/job.route.js';
-import resumeRoutes from './src/routes/resume.route.js'
+import resumeRoutes from './src/routes/resume.route.js';
+import cookieParser from "cookie-parser";
 
 const app = express();
 dotenv.config();
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
+app.use(cookieParser());
 
 
 const corsOptions = {

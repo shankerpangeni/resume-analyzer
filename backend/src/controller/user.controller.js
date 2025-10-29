@@ -15,9 +15,9 @@ export const register = async(req , res) => {
             })
         }
 
-        const user = await User.findOne({email});
+        const existingUser = await User.findOne({email});
 
-        if(user){
+        if(existingUser){
             return res.status(401).json({
                 message: 'User with with email already registered.',
                 success: false,
@@ -26,7 +26,7 @@ export const register = async(req , res) => {
 
         const hashPassword = await bcrypt.hash(password , 10);
 
-        await User.create({
+        const newUser = await User.create({
             email ,
             phoneNumber,
             fullname,
@@ -35,10 +35,10 @@ export const register = async(req , res) => {
         })
 
         const userResponse = {
-            id: user._id,
-            fullname: user.fullname,
-            email: user.email,
-            phoneNumber: user.phoneNumber
+            id: newUser._id,
+            fullname: newUser.fullname,
+            email: newUser.email,
+            phoneNumber: newUser.phoneNumber
         }
 
         return res.status(201).json({
@@ -123,16 +123,18 @@ export const login = async(req , res) => {
 
 export const logout = async(req, res) => {
     try {
-        return res.cookie("token" , "" , {
+         res.cookie("token" , "" , {
             httpOnly: true,
             sameSite: "None",
             maxAge: 0,
             secure: true,
-        }).json({
-            message: 'Successfully Logout.',
-            success: false,
-
         })
+
+        return res.status(200).json({
+            message: 'logout successful',
+            success: true,
+        })
+
     } catch (error) {
         console.log(error);
         return res.status(500).json({

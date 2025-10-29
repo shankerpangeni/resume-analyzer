@@ -13,15 +13,17 @@ const getEmbedder = async () => {
 // 🟢 Create a new job
 export const createJob = async (req, res) => {
   try {
-    const { title, description, skillsRequired, experience, education, salaryRange, jobType } = req.body;
+    const { title, description, skillsRequired, experience, education, salaryRange, jobType ,location, company} = req.body;
 
     const job = new Job({
       title,
+      location,
       description,
       skillsRequired,
       experience,
       education,
       salaryRange,
+      company,
       jobType,
       postedBy: req.id, // from isAuthenticated middleware
     });
@@ -29,8 +31,21 @@ export const createJob = async (req, res) => {
     // Compute embedding
     const embed = await getEmbedder();
     const jobText = [title, description, skillsRequired.join(' '), experience, education].join(' ');
-    const vector = await embed(jobText);
-    job.embedding = vector.flat();
+    const embeddingResult = await embed(jobText);
+
+    // Convert to flat array safely
+    let vector;
+    if (Array.isArray(embeddingResult) && Array.isArray(embeddingResult[0])) {
+      vector = embeddingResult.flat();
+    } else if (Array.isArray(embeddingResult)) {
+      vector = embeddingResult;
+    } else if (embeddingResult.data) { // tensor-like object
+      vector = Array.from(embeddingResult.data);
+    } else {
+      throw new Error('Unexpected embedding format');
+    }
+
+    job.embedding = vector;
 
     await job.save();
 
