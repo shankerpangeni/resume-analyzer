@@ -1,12 +1,16 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import Herosection from '../components/Herosection'
 import Navbar from '../components/Navbar.jsx'
+import Jobsection from '../components/Jobsection.jsx'
 
 const Home = () => {
+  
   return (
-    <div className='flex min-h-screen p-3 bg-gray-200'>
+    <div className='flex flex-col items-center min-h-screen py-3 gap-5 bg-gray-200'>
         
         <Navbar />
+        <Herosection />
+        
         
       
 

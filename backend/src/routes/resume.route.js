@@ -1,5 +1,5 @@
 import express from 'express';
-import { uploadResume, getUserResumes, getResumeById , getRecommendedJobs } from './../controller/resume.controller.js';
+import { uploadResume, getUserResumes, getResumeById  } from './../controller/resume.controller.js';
 import { isAuthenticated } from './../middleware/isAuthenticated.js';
 import {upload} from './../middleware/multer.js'
 
@@ -15,6 +15,6 @@ router.get('/all', isAuthenticated, getUserResumes);
 router.get('/:id', isAuthenticated, getResumeById);
 
 //Get recommended jobs for specific resume
-router.get('/:resumeId/recommendation', isAuthenticated, getRecommendedJobs);
+
 
 export default router;

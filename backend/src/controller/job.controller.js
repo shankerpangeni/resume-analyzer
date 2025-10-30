@@ -60,7 +60,7 @@ export const createJob = async (req, res) => {
 // 🟡 Get all jobs
 export const getAllJobs = async (req, res) => {
   try {
-    const jobs = await Job.find().populate('postedBy', 'fullname email');
+    const jobs = await Job.find().populate('postedBy', 'fullname email').limit(14);
 
     return res.status(200).json({
       message: 'Jobs fetched successfully.',
