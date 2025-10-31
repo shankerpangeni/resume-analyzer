@@ -62,7 +62,7 @@ const Herosection = () => {
 
     try {
       const formData = new FormData();
-      formData.append('resume', fileInputRef.current.files[0]);
+      formData.append('file', fileInputRef.current.files[0]);
 
       const res = await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/api/v1/resume/upload`, // backend endpoint

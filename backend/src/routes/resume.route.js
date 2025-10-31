@@ -6,7 +6,7 @@ import {upload} from './../middleware/multer.js'
 const router = express.Router();
 
 // Upload a new resume (logged-in users only)
-router.post('/upload', isAuthenticated, upload.single('resume'), uploadResume);
+router.post('/upload', isAuthenticated, upload.single('file'), uploadResume);
 
 // Get all resumes of the logged-in user
 router.get('/all', isAuthenticated, getUserResumes);
