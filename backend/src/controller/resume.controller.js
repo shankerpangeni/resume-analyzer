@@ -2,10 +2,12 @@ import { PDFParse } from 'pdf-parse';
 import { Resume } from './../models/resume.models.js';
 import { Job } from './../models/job.models.js';
 import { pipeline } from '@xenova/transformers';
+import fs from 'fs';
 
 let embedder = null;
 const SKILLS_LIST = ['JavaScript','React','Node.js','Python','Django','MongoDB','HTML','CSS'];
 
+// Cosine similarity function
 const cosineSimilarity = (vecA, vecB) => {
   const minLen = Math.min(vecA.length, vecB.length);
   const a = vecA.slice(0, minLen);
@@ -16,6 +18,7 @@ const cosineSimilarity = (vecA, vecB) => {
   return magA && magB ? dot/(magA*magB) : 0;
 };
 
+// Flatten embedding
 const cleanEmbedding = (embed) => {
   if (!embed) return [];
   if (Array.isArray(embed[0])) return embed.flat();
@@ -23,6 +26,7 @@ const cleanEmbedding = (embed) => {
   return Array.from(embed);
 };
 
+// Initialize embedder
 const initEmbedder = async () => {
   if (!embedder) embedder = await pipeline('feature-extraction','Xenova/all-MiniLM-L6-v2');
 };
@@ -32,11 +36,12 @@ export const uploadResume = async (req,res) => {
     if (!req.file)
       return res.status(400).json({ message: 'PDF required', success:false });
 
-    // Parse PDF from buffer (memory)
-    const parser = new PDFParse({ data: req.file.buffer });
+    // Parse PDF from buffer or file path
+    const dataBuffer = req.file.buffer || fs.readFileSync(req.file.path);
+    const parser = new PDFParse({ data: dataBuffer });
     const { text } = await parser.getText();
 
-    // Skills, experience, education
+    // Extract skills, experience, education
     const skills = SKILLS_LIST.filter(s => new RegExp(`\\b${s}\\b`, 'i').test(text));
     const experience = (text.match(/(\d+)\s+years?/i)?.[1]) || 0;
     let education = '';
@@ -44,7 +49,7 @@ export const uploadResume = async (req,res) => {
     else if (/master/i.test(text)) education='Masters';
     else if (/ph\.d|phd/i.test(text)) education='PhD';
 
-    // AI embedding
+    // Get embedding
     await initEmbedder();
     const embeddingResult = await embedder(text, { pooling:'mean', normalize:true });
     const embedding = cleanEmbedding(embeddingResult);
@@ -60,20 +65,21 @@ export const uploadResume = async (req,res) => {
       embedding
     });
 
-    // Fetch jobs (limit for memory safety)
+    // Fetch jobs (limit for memory)
     const jobs = await Job.find({ embedding: { $exists:true, $ne:[] } }).limit(100);
     const recommendations = jobs.map(job=>{
       const jobVec = cleanEmbedding(job.embedding);
-      const similarity = cosineSimilarity(embedding,jobVec);
-      return { jobId:job._id, similarityScore: Math.round(similarity*100) };
+      const similarity = cosineSimilarity(embedding, jobVec);
+      return { jobId: job._id, similarityScore: Math.round(similarity*100) };
     }).sort((a,b)=>b.similarityScore - a.similarityScore).slice(0,6);
 
-    resume.recommendedJobs = recommendations.map(r=>({ job:r.jobId, similarityScore:r.similarityScore }));
+    // Save recommendations
+    resume.recommendedJobs = recommendations.map(r=>({ job: r.jobId, similarityScore: r.similarityScore }));
     await resume.save();
 
     // Populate jobs for frontend
     const populated = await Resume.findById(resume._id).populate('recommendedJobs.job');
-    const recommendedJobs = populated.recommendedJobs.map(r=>({...r.job.toObject(), similarityScore:r.similarityScore}));
+    const recommendedJobs = populated.recommendedJobs.map(r => ({ ...r.job.toObject(), similarityScore: r.similarityScore }));
 
     return res.status(201).json({
       success:true,
@@ -83,10 +89,11 @@ export const uploadResume = async (req,res) => {
     });
 
   } catch(err){
-    console.error('Resume upload error',err);
+    console.error('Resume upload error', err);
     return res.status(500).json({ success:false, message:'Server error' });
   }
 };
+
 
 
 
