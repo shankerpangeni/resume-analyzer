@@ -1,143 +1,93 @@
-import fs from 'fs';
 import { PDFParse } from 'pdf-parse';
 import { Resume } from './../models/resume.models.js';
 import { Job } from './../models/job.models.js';
 import { pipeline } from '@xenova/transformers';
 
-// Predefined skills
-const SKILLS_LIST = ['JavaScript', 'React', 'Node.js', 'Python', 'Django', 'MongoDB', 'HTML', 'CSS'];
+let embedder = null;
+const SKILLS_LIST = ['JavaScript','React','Node.js','Python','Django','MongoDB','HTML','CSS'];
 
-// ✅ Cosine similarity with normalization
 const cosineSimilarity = (vecA, vecB) => {
   const minLen = Math.min(vecA.length, vecB.length);
   const a = vecA.slice(0, minLen);
   const b = vecB.slice(0, minLen);
-
-  const dot = a.reduce((sum, val, i) => sum + val * b[i], 0);
-  const magA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
-  const magB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
-
-  return magA && magB ? dot / (magA * magB) : 0;
+  const dot = a.reduce((sum,val,i)=>sum+val*b[i],0);
+  const magA = Math.sqrt(a.reduce((sum,val)=>sum+val*val,0));
+  const magB = Math.sqrt(b.reduce((sum,val)=>sum+val*val,0));
+  return magA && magB ? dot/(magA*magB) : 0;
 };
 
-// Initialize embedder
-let embedder;
-const initEmbedder = async () => {
-  if (!embedder) embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-};
-
-// ✅ Safer embedding flattening
 const cleanEmbedding = (embed) => {
   if (!embed) return [];
-  if (Array.isArray(embed) && typeof embed[0] === 'number') return embed;
-  if (Array.isArray(embed) && Array.isArray(embed[0])) return embed.flat();
-  if (embed.data) return Array.from(embed.data);
+  if (Array.isArray(embed[0])) return embed.flat();
+  if (Array.isArray(embed)) return embed;
   return Array.from(embed);
 };
 
-export const uploadResume = async (req, res) => {
+const initEmbedder = async () => {
+  if (!embedder) embedder = await pipeline('feature-extraction','Xenova/all-MiniLM-L6-v2');
+};
+
+export const uploadResume = async (req,res) => {
   try {
     if (!req.file)
-      return res.status(400).json({ message: 'PDF file is required.', success: false });
+      return res.status(400).json({ message: 'PDF required', success:false });
 
-    // 🔹 Read and parse PDF
-    const pdfBuffer = fs.readFileSync(req.file.path);
-    const parser = new PDFParse({ data: pdfBuffer });
-    const { text: resumeText } = await parser.getText();
+    // Parse PDF from buffer (memory)
+    const parser = new PDFParse({ data: req.file.buffer });
+    const { text } = await parser.getText();
 
-    // 🔹 Extract skills
-    const skills = SKILLS_LIST.filter(skill => new RegExp(`\\b${skill}\\b`, 'i').test(resumeText));
-
-    // 🔹 Extract experience
-    let experience = 0;
-    const expMatch = resumeText.match(/(\d+)\s+years?/i);
-    if (expMatch) experience = parseInt(expMatch[1]);
-
-    // 🔹 Extract education
+    // Skills, experience, education
+    const skills = SKILLS_LIST.filter(s => new RegExp(`\\b${s}\\b`, 'i').test(text));
+    const experience = (text.match(/(\d+)\s+years?/i)?.[1]) || 0;
     let education = '';
-    if (/bachelor/i.test(resumeText)) education = 'Bachelors';
-    else if (/master/i.test(resumeText)) education = 'Masters';
-    else if (/ph\.d|phd/i.test(resumeText)) education = 'PhD';
+    if (/bachelor/i.test(text)) education='Bachelors';
+    else if (/master/i.test(text)) education='Masters';
+    else if (/ph\.d|phd/i.test(text)) education='PhD';
 
-    // 🔹 Generate embeddings
+    // AI embedding
     await initEmbedder();
-    const embeddingResult = await embedder(resumeText, { pooling: 'mean', normalize: true });
+    const embeddingResult = await embedder(text, { pooling:'mean', normalize:true });
     const embedding = cleanEmbedding(embeddingResult);
 
-    // 🔹 Save resume
+    // Save resume
     const resume = await Resume.create({
       user: req.id,
-      fileUrl: req.file.path,
       filename: req.file.originalname,
       skills,
       experience,
       education,
-      fullText: resumeText,
-      embedding,
+      fullText: text,
+      embedding
     });
 
-    // 🔹 Fetch jobs
-    const jobs = await Job.find({ embedding: { $exists: true, $ne: [] } });
-    if (!jobs.length)
-      return res.status(404).json({ message: 'No jobs available with embeddings.', success: false });
+    // Fetch jobs (limit for memory safety)
+    const jobs = await Job.find({ embedding: { $exists:true, $ne:[] } }).limit(100);
+    const recommendations = jobs.map(job=>{
+      const jobVec = cleanEmbedding(job.embedding);
+      const similarity = cosineSimilarity(embedding,jobVec);
+      return { jobId:job._id, similarityScore: Math.round(similarity*100) };
+    }).sort((a,b)=>b.similarityScore - a.similarityScore).slice(0,6);
 
-    // 🔹 Compute similarity
-    const recommendations = jobs.map(job => {
-      const jobVector = cleanEmbedding(job.embedding);
-      const similarity = cosineSimilarity(embedding, jobVector);
-      const similarityScore = Math.round(similarity * 100);
-      return { jobId: job._id, similarityScore };
-    });
-
-    console.log("🔍 Similarity scores:", recommendations.map(r => r.similarityScore));
-
-    // 🔹 Sort & pick top 6
-    const topRecommendations = recommendations
-      .sort((a, b) => b.similarityScore - a.similarityScore)
-      .slice(0, 6);
-
-    // ✅ New logic for resume validation
-    const highest = Math.max(...recommendations.map(r => r.similarityScore));
-    const average = topRecommendations.reduce((a, b) => a + b.similarityScore, 0) / topRecommendations.length;
-    const THRESHOLD = 5; // relaxed — realistic embeddings are often low (3–20)
-
-    if (highest < THRESHOLD && average < THRESHOLD) {
-      await Resume.findByIdAndDelete(resume._id); // cleanup
-      return res.status(400).json({
-        message: 'Please upload a valid resume — no meaningful matches found.',
-        success: false,
-      });
-    }
-
-    // 🔹 Save recommendations
-    resume.recommendedJobs = topRecommendations.map(r => ({
-      job: r.jobId,
-      similarityScore: r.similarityScore,
-    }));
+    resume.recommendedJobs = recommendations.map(r=>({ job:r.jobId, similarityScore:r.similarityScore }));
     await resume.save();
 
-    // 🔹 Populate for frontend
-    const populatedResume = await Resume.findById(resume._id).populate('recommendedJobs.job');
-    const recommendedJobs = populatedResume.recommendedJobs.map(r => ({
-      ...r.job.toObject(),
-      similarityScore: r.similarityScore,
-    }));
+    // Populate jobs for frontend
+    const populated = await Resume.findById(resume._id).populate('recommendedJobs.job');
+    const recommendedJobs = populated.recommendedJobs.map(r=>({...r.job.toObject(), similarityScore:r.similarityScore}));
 
     return res.status(201).json({
-      message: 'Resume uploaded and job recommendations generated successfully.',
+      success:true,
+      message:'Resume processed',
       resume,
-      recommendedJobs,
-      success: true,
+      recommendedJobs
     });
 
-  } catch (error) {
-    console.error('Upload + Recommendation Error:', error);
-    return res.status(500).json({
-      message: 'Server error while uploading resume and generating recommendations.',
-      success: false,
-    });
+  } catch(err){
+    console.error('Resume upload error',err);
+    return res.status(500).json({ success:false, message:'Server error' });
   }
 };
+
 
 
 
