@@ -35,7 +35,7 @@ const Signup = () => {
 
         try {
 
-            const res = await axios.post('http://localhost:8000/api/v1/user/register', formData , {
+            const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/v1/user/register`, formData , {
                 headers: {"Content-Type" : "application/json"},
                 withCredentials: true,
             });
@@ -119,6 +119,12 @@ const Signup = () => {
                 <button  type="submit" className='bg-blue-950 text-white p-3 text-xl rounded-xl font-medium cursor-pointer hover:text-blue-950 hover:bg-white hover:border-2 hover:border-blue-950'>Register</button>
 
             </div>
+
+            {error && 
+            <div className="flex justify-center items-center ">
+                <span className='text-base '>Already have an accout ? <Link to="/login" className="font-semibold text-blue-950 border-b cursor-pointer">Login</Link> </span>
+            </div>
+            }
 
         </form>
             <div className="flex justify-center items-center ">

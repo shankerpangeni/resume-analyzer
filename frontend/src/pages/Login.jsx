@@ -53,7 +53,7 @@ const Signup = () => {
         setError("");
       try {
         
-        const res = await axios.post('http://localhost:8000/api/v1/user/login' , formData , { headers : {
+        const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/v1/user/login` , formData , { headers : {
             "Content-Type" : "application/json"
         }, withCredentials: true});
 

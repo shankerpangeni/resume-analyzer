@@ -15,7 +15,7 @@ const Herosection = () => {
     const fetchJobs = async () => {
       try {
         setLoading(true);
-        const res = await axios.get('http://localhost:8000/api/v1/job/all', {
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/v1/job/all`, {
           headers: { 'Content-Type': 'application/json' },
           withCredentials: true,
         });
@@ -65,7 +65,7 @@ const Herosection = () => {
       formData.append('resume', fileInputRef.current.files[0]);
 
       const res = await axios.post(
-        'http://localhost:8000/api/v1/resume/upload', // backend endpoint
+        `${import.meta.env.VITE_BACKEND_URL}/api/v1/resume/upload`, // backend endpoint
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' },
