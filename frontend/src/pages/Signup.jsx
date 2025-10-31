@@ -1,6 +1,6 @@
 import React, { use } from 'react'
 import { Link, useNavigate } from 'react-router-dom';
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import axios from 'axios';
 
 const Signup = () => {
@@ -8,6 +8,10 @@ const Signup = () => {
     const[loading , setLoading] = useState(false);
     const[error , setError] = useState(null);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        document.title = "SignUP | JobHunt"; // 👈 set tab title dynamically
+        }, []);
 
     const [formData , setFormData] = useState({
         fullname: "",

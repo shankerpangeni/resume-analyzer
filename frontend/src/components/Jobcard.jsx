@@ -1,11 +1,20 @@
-import React from 'react';
+import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const Jobcard = ({ job }) => {
+  const navigate = useNavigate();
+
   if (!job) return null;
 
-  return (
-    <div className="flex flex-col justify-between bg-white rounded-2xl shadow-lg p-5 gap-4 transform hover:scale-105 transition-transform duration-300 h-full">
+  const handleViewDetails = () => {
+    navigate(`/job/${job._id}`); // 👈 dynamic routing by job ID
+  };
 
+  return (
+    <div
+      className="flex flex-col justify-between bg-white rounded-2xl shadow-lg p-5 gap-4 transform hover:scale-105 transition-transform duration-300 h-full"
+      onClick={handleViewDetails}
+    >
       {/* Job Title */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-blue-950 truncate">{job.title}</h2>
@@ -25,19 +34,33 @@ const Jobcard = ({ job }) => {
 
       {/* Job Info */}
       <div className="flex flex-col gap-1 mt-2 text-gray-700 text-sm">
-        <span><span className="font-semibold text-gray-900">Company:</span> {job.company}</span>
-        <span><span className="font-semibold text-gray-900">Location:</span> {job.location}</span>
-        <span><span className="font-semibold text-gray-900">Type:</span> {job.jobType}</span>
-        <span><span className="font-semibold text-gray-900">Salary:</span> {job.salaryRange || 'Not Disclosed'}</span>
+        <span>
+          <span className="font-semibold text-gray-900">Company:</span> {job.company}
+        </span>
+        <span>
+          <span className="font-semibold text-gray-900">Location:</span> {job.location}
+        </span>
+        <span>
+          <span className="font-semibold text-gray-900">Type:</span> {job.jobType}
+        </span>
+        <span>
+          <span className="font-semibold text-gray-900">Salary:</span>{" "}
+          {job.salaryRange || "Not Disclosed"}
+        </span>
       </div>
 
       {/* View Details Button */}
       <div className="mt-auto flex justify-center">
-        <button className=" cursor-pointer w-full py-3 bg-blue-950 text-white font-semibold rounded-xl shadow-mdtransition">
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // prevent double-trigger
+            handleViewDetails();
+          }}
+          className="cursor-pointer w-full py-3 bg-blue-950 text-white font-semibold rounded-xl shadow-md hover:bg-blue-900 transition"
+        >
           View More Details
         </button>
       </div>
-
     </div>
   );
 };

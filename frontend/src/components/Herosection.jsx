@@ -117,10 +117,10 @@ const Herosection = () => {
           <button
             className={`${
               fileName ? 'block' : 'hidden'
-            } bg-green-700 text-white md:font-bold px-3 md:px-8 py-4 text-md sm:text-lg font-medium lg:text-3xl rounded-xl cursor-pointer hover:bg-red-900`}
+            } ${loading ? 'bg-red-600' : 'bg-green-700'} text-white md:font-bold px-3 md:px-8 py-4 text-md sm:text-lg font-medium lg:text-3xl rounded-xl cursor-pointer hover:bg-red-900 `}
             onClick={handleRecommendation}
           >
-            Get Recommendation
+            {loading ? 'Analyzing...' : 'Get Recommendations'}
           </button>
         </div>
 
